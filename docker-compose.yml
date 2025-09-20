@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: nutrilife-postgres
+    environment:
+      POSTGRES_DB: nutrilife
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nutrilife-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: nutrilife-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - nutrilife-network
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # NutriLife Core Service
+  nutrilife-core:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: nutrilife-core
+    working_dir: /app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/nutrilife_core
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+    volumes:
+      - .:/app
+      - maven_cache:/root/.m2
+    command: >
+      sh -c "cd nutrilife-core && 
+             mvn clean package -DskipTests &&
+             java -jar target/*.jar"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - nutrilife-network
+
+  # NutriLife Auth Service
+  nutrilife-auth:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: nutrilife-auth
+    working_dir: /app
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/nutrilife_auth
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+    volumes:
+      - .:/app
+      - maven_cache:/root/.m2
+    command: >
+      sh -c "cd nutrilife-auth && 
+             mvn clean package -DskipTests &&
+             java -jar target/*.jar"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - nutrilife-network
+
+volumes:
+  postgres_data:
+  maven_cache:
+  redis_data:
+
+networks:
+  nutrilife-network:
+    driver: bridge
