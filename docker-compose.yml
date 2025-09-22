@@ -41,6 +41,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
+      SERVER_MAX_HTTP_HEADER_SIZE: 32KB
+      SERVER_TOMCAT_MAX_HTTP_POST_SIZE: 32KB
+      SERVER_TOMCAT_MAX_HTTP_FORM_POST_SIZE: 32KB
     volumes:
       - .:/app
       - maven_cache:/root/.m2
@@ -67,6 +70,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
+      SERVER_MAX_HTTP_HEADER_SIZE: 32KB
+      SERVER_TOMCAT_MAX_HTTP_POST_SIZE: 32KB
+      SERVER_TOMCAT_MAX_HTTP_FORM_POST_SIZE: 32KB
     volumes:
       - .:/app
       - maven_cache:/root/.m2
@@ -77,6 +83,56 @@ services:
     depends_on:
       - postgres
       - redis
+    networks:
+      - nutrilife-network
+
+  # NutriLife Profile Service
+  nutrilife-profile:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: nutrilife-profile
+    working_dir: /app
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/nutrilife_profile
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      JWT_SECRET: nutrilife-secret-key-for-profile-service-very-long-and-secure-key-must-be-at-least-256-bits
+      SERVER_MAX_HTTP_HEADER_SIZE: 32KB
+      SERVER_TOMCAT_MAX_HTTP_POST_SIZE: 32KB
+      SERVER_TOMCAT_MAX_HTTP_FORM_POST_SIZE: 32KB
+    volumes:
+      - .:/app
+      - maven_cache:/root/.m2
+    command: >
+      sh -c "cd nutrilife-profile && 
+             mvn clean package -DskipTests &&
+             java -jar target/*.jar"
+    depends_on:
+      - postgres
+      - redis
+      - nutrilife-auth
+    networks:
+      - nutrilife-network
+
+  # NutriLife Frontend Service
+  nutrilife-frontend:
+    build:
+      context: ./nutrilife-frontend
+      dockerfile: Dockerfile
+    container_name: nutrilife-frontend
+    ports:
+      - "3000:80"
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8080
+      REACT_APP_AUTH_API_URL: http://localhost:8081
+      REACT_APP_PROFILE_API_URL: http://localhost:8082
+    depends_on:
+      - nutrilife-core
+      - nutrilife-auth
+      - nutrilife-profile
     networks:
       - nutrilife-network
 

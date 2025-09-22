@@ -30,9 +30,9 @@ public class JwtUtil {
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("username", user.getUsername());
-        claims.put("email", user.getEmail());
         claims.put("role", user.getRole().name());
-        return createToken(claims, user.getUsername());
+        // Email'i kaldırdık çünkü username'den ulaşılabilir
+        return createToken(claims, user.getId().toString());
     }
     
     private String createToken(Map<String, Object> claims, String subject) {
